@@ -1,0 +1,8 @@
+# macOS metadata
+.DS_Store
+
+# Runtime SQLite caches
+*.db
+
+# Transient Zarr caches (rebuilt each run)
+*.zarr/
