@@ -1,110 +1,73 @@
 # canvod-readers Test Data
 
-Test data for canvod-readers package validation.
+Test data for canvod-readers package validation and end-to-end pipeline testing.
+Covers **Rosalia, Austria** — DOY **2025-001** (2025-01-01), full 24-hour day.
 
 ## Structure
 
 ```
 test_data/
-├── 01_Rosalia/                          # Rosalia site test files
-│   ├── 01_reference/01_GNSS/01_raw/
-│   │   └── 25001/                       # 2025 DOY 001
-│   └── 02_canopy/01_GNSS/01_raw/
-│       └── 25001/
-│           └── ract001a00.25o          # ✅ Single 15-min file for tests
-├── valid/                               # Alternative structure (future)
-│   ├── rinex_v3_04/
-│   └── aux/
-└── README.md                            # This file
+├── valid/
+│   ├── rinex_v3_04/                         # RINEX v3.04 observation files
+│   │   └── 01_Rosalia/
+│   │       ├── 01_reference/01_GNSS/01_raw/
+│   │       │   └── 25001/                   # 96 × 15-min files (rref001*.25o)
+│   │       └── 02_canopy/01_GNSS/01_raw/
+│   │           └── 25001/                   # 96 × 15-min files (ract001*.25o)
+│   ├── sbf/                                 # Septentrio Binary Format files
+│   │   └── 01_Rosalia/
+│   │       ├── 01_reference/25001/          # 96 × 15-min files (rref001*.25_)
+│   │       └── 02_canopy/25001/             # 96 × 15-min files (ract001*.25_)
+│   ├── aux/                                 # Precise ephemeris products
+│   │   ├── 00_aux_files/
+│   │   │   ├── 01_SP3/                      # COD0MGXFIN 2025-001 orbit (5 min)
+│   │   │   └── 02_CLK/                      # COD0MGXFIN 2025-001 clock (30 s)
+│   │   ├── 01_SP3/                          # SP3 (pipeline search path)
+│   │   └── 02_CLK/                          # CLK (pipeline search path)
+│   └── stores/
+│       └── rosalia_rinex/                   # Icechunk store snapshot for store tests
+└── README.md
 ```
 
-## Current Test Files
+## Receivers
 
-### Rosalia Canopy - 2025 DOY 001
+| ID | Type | Station code | Format |
+|---|---|---|---|
+| `reference_01` | Open-sky reference | `rref` | RINEX v3.04, SBF |
+| `canopy_01` | Below-canopy | `ract` | RINEX v3.04, SBF |
 
-**File**: `01_Rosalia/02_canopy/01_GNSS/01_raw/25001/ract001a00.25o`
+## File naming
 
-- **Size**: ~1.5 MB
-- **Format**: RINEX v3 observation (short name format)
-- **Period**: 2025-01-01 00:00-00:15 UTC
-- **Receiver**: Below-canopy receiver
-- **Site**: Rosalia, Austria
-- **Purpose**: Integration tests for RINEX parsing
-
-## Usage in Tests
-
-Tests use the `sample_rinex_file` fixture from `conftest.py`:
-
-```python
-def test_something(sample_rinex_file):
-    from canvod.readers import Rnxv3Obs
-    
-    obs = Rnxv3Obs(fpath=sample_rinex_file)
-    ds = obs.to_ds()
-    # ... test assertions
-```
-
-## Adding More Test Files
-
-### For Error Handling Tests
-
-Create **corrupted** directory with intentionally broken files:
+RINEX short-name convention:
 
 ```
-test_data/
-└── corrupted/
-    ├── truncated_header.25o      # Missing END OF HEADER
-    ├── invalid_epochs.25o        # Non-monotonic times
-    └── bad_satellites.25o        # Invalid SV IDs
-```
-
-### For Edge Case Tests
-
-Create **edge_cases** directory:
-
-```
-test_data/
-└── edge_cases/
-    ├── minimal.25o               # Single epoch
-    ├── sparse.25o                # Large time gaps
-    └── multi_gnss.25o            # All GNSS systems
-```
-
-## File Naming Convention
-
-RINEX short name format:
-
-```
-ract001a00.25o
+ract001d00.25o
 └┬┘└┬┘└┬┘└┬┘└┬─┬┘
- │  │  │  │  │ └─ Extension: o (observation)
- │  │  │  │  └─── Year: 25 (2025)
- │  │  │  └────── Session: 00 (00:00-00:15)
- │  │  └───────── Hour: a (00h)
- │  └──────────── DOY: 001
- └─────────────── Station: ract (Rosalia canopy)
+ │  │  │  │  │ └── Extension: o = observation, _ = SBF
+ │  │  │  │  └──── Year: 25 (2025)
+ │  │  │  └─────── Session: 00 / 15 / 30 / 45 (minutes)
+ │  │  └────────── Hour letter: a=00h … x=23h
+ │  └───────────── DOY: 001
+ └──────────────── Station: ract (Rosalia canopy), rref (Rosalia reference)
 ```
 
-## Source
+## Auxiliary data
 
-Test files are copied from the main [canvodpy-demo](https://github.com/nfb2021/canvodpy-demo) repository.
+COD (Center for Orbit Determination in Europe) final products, 2025-001:
 
-## Maintenance
+| File | Product | Interval |
+|---|---|---|
+| `COD0MGXFIN_20250010000_01D_05M_ORB.SP3` | Multi-GNSS precise orbits | 5 min |
+| `COD0MGXFIN_20250010000_01D_30S_CLK.CLK` | Precise satellite clocks | 30 s |
 
-**Keep test files minimal**:
-- Use single-epoch or single-file when possible
-- Don't duplicate full datasets
-- Document the purpose of each test file
+## Ignored files
 
-**When updating**:
-1. Add new test file to appropriate directory
-2. Update this README
-3. Create corresponding test case
-4. Commit to canvodpy-test-data repository
-5. Update main repo submodule reference
+The `.gitignore` excludes:
+
+- `.DS_Store` — macOS metadata
+- `*.db` — runtime SQLite caches (e.g. `gnss_satellites_cache.db`)
+- `*.zarr/` — transient Zarr preprocessing caches (rebuilt each run)
 
 ## License
 
-MIT (same as canvodpy)
-
-Data collected by TU Wien Department of Geodesy and Geoinformation.
+Data collected by TU Wien, Department of Geodesy and Geoinformation.
